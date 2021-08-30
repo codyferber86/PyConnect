@@ -16,6 +16,7 @@
 #!    Copyright Cody Ferber, 2021.
 ###############################################################################
 from contextlib import closing
+from datetime import datetime
 from discord.ext import commands
 from random import *
 import asyncio
@@ -24,20 +25,21 @@ import discord
 class Countbot(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.current_month = datetime.now().month
 
 ############################################################################### 
     @commands.command(name='export', brief='Export userlist.',
             description='Export userlist.')
-    @commands.cooldown(1, 30, commands.BucketType.channel)
-    async def send(self, ctx):
-        await ctx.send(file=discord.File("userlist.dat"))
+    @commands.cooldown(1, 5, commands.BucketType.channel)
+    async def send(self, ctx, month):
+        await ctx.send(file=discord.File('userlist_{}.dat'.format(month)))
 
 ###############################################################################
     @commands.command(name='list', brief='Display userlist.',
             description='Display userlist.')
-    @commands.cooldown(1, 30, commands.BucketType.channel)
-    async def list(self, ctx):
-        with open('userlist.dat', 'r') as file:
+    @commands.cooldown(1, 5, commands.BucketType.channel)
+    async def list(self, ctx, month):
+        with open('userlist_{}.dat'.format(month), 'r') as file:
             data = file.read()
         embed = discord.Embed(colour=discord.Colour(0x7ed321),
                 title='Active userlist.')

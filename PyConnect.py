@@ -16,6 +16,7 @@
 #!    Copyright Cody Ferber, 2021.
 ###############################################################################
 from contextlib import closing
+from datetime import datetime
 from discord.ext import commands
 import asyncio
 import discord
@@ -38,11 +39,14 @@ class Client:
         self.on_ready = self.bot.event(self.on_ready)
         self.on_message = self.bot.event(self.on_message)
         self.bot.load_extension('Countbot')
+        self.current_month = datetime.now().month
         self.list = []
-        with open('userlist.dat', 'r') as file:
+        with open('userlist_{}.dat'.format(self.current_month), 'r') as file:
             data = file.read()
             user_ids = re.findall('[0-9]+', data)
-        self.list.extend((user_ids))
+            self.list.extend(user_ids)
+        for i in range(0, len(user_ids)):
+            self.list[i] = int(self.list[i])
         
 ###############################################################################
     async def on_ready(self):
@@ -52,14 +56,12 @@ class Client:
 
 ###############################################################################
     async def on_message(self, message):
-        print(message.author.name)
-        print(message.author.id)
         await self.bot.process_commands(message)
         self.rows = [message.author.name, message.author.id]
-        with open('userlist.dat', 'a+') as file:
-            if not str(message.author.id) in self.list:
+        with open('userlist_{}.dat'.format(self.current_month), 'a+') as file:
+            if not message.author.id in self.list:
                 file.write(str(self.rows) + '\n')
-        self.list.extend({message.author.name, message.author.id})
+        self.list.extend([message.author.name, message.author.id])
 
 ###############################################################################
 def main():

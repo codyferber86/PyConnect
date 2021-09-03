@@ -42,7 +42,7 @@ class Countbot(commands.Cog):
         with open('userlist_{}.dat'.format(month), 'r') as file:
             data = file.read()
         embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                title='Active userlist.')
+                title='Active userlist for month {}.'.format(month))
         embed.add_field(name='Users:',value=data, inline=False)
         await ctx.send(embed=embed)
 

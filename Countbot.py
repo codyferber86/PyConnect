@@ -21,6 +21,7 @@ from discord.ext import commands
 from random import *
 import asyncio
 import discord
+import re
 
 class Countbot(commands.Cog):
     def __init__(self, bot):
@@ -34,6 +35,19 @@ class Countbot(commands.Cog):
     async def send(self, ctx, month):
         await ctx.send(file=discord.File('userlist_{}.dat'.format(month)))
 
+############################################################################### 
+    @commands.command(name='find', brief='Find user.',
+            description='Find user.')
+    @commands.cooldown(1, 5, commands.BucketType.channel)
+    async def find(self, ctx, month, id):
+        with open('userlist_{}.dat'.format(month), 'r') as file:
+            data = file.read()
+        results = re.findall(r'{}'.format(id), data)
+        embed = discord.Embed(colour=discord.Colour(0x7ed321),
+                title='Userlist search.')
+        embed.add_field(name='Results:', value=results, inline=False)
+        await ctx.send(embed=embed)
+        
 ###############################################################################
     @commands.command(name='list', brief='Display userlist.',
             description='Display userlist.')

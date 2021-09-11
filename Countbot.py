@@ -55,9 +55,12 @@ class Countbot(commands.Cog):
     async def list(self, ctx, month):
         with open('userlist_{}.dat'.format(month), 'r') as file:
             data = file.read()
+        buffer_size = 1023
+        chunks = [data[i:i+buffer_size] for i in range(0, len(data), buffer_size)]
         embed = discord.Embed(colour=discord.Colour(0x7ed321),
                 title='Active userlist for month {}.'.format(month))
-        embed.add_field(name='Users:',value=data, inline=False)
+        for value in chunks:
+            embed.add_field(name='Users:',value=value, inline=False)
         await ctx.send(embed=embed)
 
 def setup(bot):

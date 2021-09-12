@@ -57,11 +57,12 @@ class Countbot(commands.Cog):
             data = file.read()
         buffer_size = 1023
         chunks = [data[i:i+buffer_size] for i in range(0, len(data), buffer_size)]
-        embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                title='Active userlist for month {}.'.format(month))
         for value in chunks:
+            embed = discord.Embed(colour=discord.Colour(0x7ed321),
+                    title='Active userlist for month {}.'.format(month))
             embed.add_field(name='Users:',value=value, inline=False)
-        await ctx.send(embed=embed)
+            await ctx.send(embed=embed)
+            await asyncio.sleep(1)
 
 def setup(bot):
     bot.add_cog(Countbot(bot))

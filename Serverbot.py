@@ -215,11 +215,11 @@ class Serverbot(commands.Cog):
                 self.player = await voice.connect()
                 self.voice_connected = True
             try:
-                await channel.send('{}'.format(self.telnet.read_very_eager().decode('ascii')))
-                print(self.telnet.read_very_eager().decode('ascii'))
-            except:
-                print('empty')
-            await asyncio.sleep(10)
+                message = self.telnet.read_very_eager().decode('ascii') 
+                await channel.send('{}'.format(message))
+                print(message)
+            finally:
+                await asyncio.sleep(10)
 
 ###############################################################################
     @commands.command(name='unlock', brief='Unlock test server.',

@@ -13,13 +13,14 @@
 #!    You should have received a copy of the GNU General Public License
 #!    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#!    Copyright Cody Ferber, 2021.
+#!    Copyright Cody Ferber, 2020.
 ###############################################################################
 from contextlib import closing
 from discord.ext import commands
 import asyncio
 import discord
 import json
+import pymysql
 import telnetlib
 
 class Serverbot(commands.Cog):
@@ -97,6 +98,27 @@ class Serverbot(commands.Cog):
             self.config = json.load(config_file)
             self.ip = self.config['server']['ip']
             self.port = self.config['server']['port']
+
+###############################################################################
+    @commands.command(name='register', brief='Register character with server.',
+            description='Register character with server.')
+    @commands.cooldown(1, 5, commands.BucketType.channel)
+    async def register(self, ctx, name):
+        db = pymysql.connect(host='localhost',
+                             user='',
+                             password='',
+                             database='eqemu')
+        cursor = db.cursor()
+        sql = "UPDATE `account` SET `status` = '1' WHERE `account`.`charname` = '{}';".format(name)
+        try:
+            cursor.execute(sql)
+            db.commit()
+        except:
+            db.rollback()
+        db.close()
+        embed = discord.Embed(colour=discord.Colour(0x7ed321),
+                title='Registering character with server!')
+        await ctx.send(embed=embed)
 
 ###############################################################################
     @commands.command(name='reloadzonequests', brief='Reload zone quests.',
@@ -215,7 +237,7 @@ class Serverbot(commands.Cog):
                 self.player = await voice.connect()
                 self.voice_connected = True
             try:
-                message = self.telnet.read_very_eager().decode('ascii') 
+                message = self.telnet.read_very_eager().decode('ascii')
                 await channel.send('{}'.format(message))
                 print(message)
             finally:

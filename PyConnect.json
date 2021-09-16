@@ -1,4 +1,19 @@
 {
-    "token": ""
+  "id": {
+    "channel": "885500127966527538",
+    "voice": "884531521636139078"
+  },
+  "server": {
+    "host": "localhost",
+    "port": "9000",
+    "user": "telnet",
+    "password": "eqemu"
+  },
+  "sql": {
+    "host": "localhost",
+    "db": "eqemu",
+    "user": "user",
+    "password": "pass"
+  },
+  "token": ""
 }
-

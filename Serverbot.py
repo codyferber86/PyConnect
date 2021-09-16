@@ -21,6 +21,7 @@ import asyncio
 import discord
 import json
 import pymysql
+import re
 import telnetlib
 
 class Serverbot(commands.Cog):
@@ -32,15 +33,21 @@ class Serverbot(commands.Cog):
             self.config = json.load(config_file)
             self.channel_id = self.config['id']['channel']
             self.voice_id = self.config['id']['voice']
-            self.ip = self.config['server']['ip']
-            self.port = self.config['server']['port']
+            self.telnet_host = self.config['server']['host']
+            self.telnet_port = self.config['server']['port']
+            self.telnet_user = self.config['server']['user']
+            self.telnet_pass = self.config['server']['password']
+            self.sql_host = self.config['sql']['host']
+            self.sql_db = self.config['sql']['db']
+            self.sql_user = self.config['sql']['user']
+            self.sql_pass = self.config['sql']['password']
         self.tracking_task = False
         self.voice_connected = False
-        self.telnet = telnetlib.Telnet(self.ip, self.port)
+        self.telnet = telnetlib.Telnet(self.telnet_host, self.telnet_port)
         print(self.telnet.read_until(b'Username: ').decode('ascii'))
-        self.telnet.write(b'telnet\n')
+        self.telnet.write(bytes(self.telnet_user, encoding='ascii') + b'\n')
         print(self.telnet.read_until(b'Password: ').decode('ascii'))
-        self.telnet.write(b'eqemu\n')
+        self.telnet.write(bytes(self.telnet_pass, encoding='ascii') + b'\n')
         print(self.telnet.read_until(b'> ').decode('ascii'))
 
 ###############################################################################
@@ -96,18 +103,18 @@ class Serverbot(commands.Cog):
         await ctx.send(embed=embed)
         with open('PyConnect.json') as config_file:
             self.config = json.load(config_file)
-            self.ip = self.config['server']['ip']
-            self.port = self.config['server']['port']
+            self.telnet_host = self.config['server']['host']
+            self.telnet_port = self.config['server']['port']
 
 ###############################################################################
     @commands.command(name='register', brief='Register character with server.',
             description='Register character with server.')
     @commands.cooldown(1, 5, commands.BucketType.channel)
     async def register(self, ctx, name):
-        db = pymysql.connect(host='localhost',
-                             user='',
-                             password='',
-                             database='eqemu')
+        db = pymysql.connect(host=self.sql_host,
+                             user=self.sql_user,
+                             password=self.sql_pass,
+                             database=self.sql_db)
         cursor = db.cursor()
         sql = "UPDATE `account` SET `status` = '1' WHERE `account`.`charname` = '{}';".format(name)
         try:
@@ -147,11 +154,11 @@ class Serverbot(commands.Cog):
         embed = discord.Embed(colour=discord.Colour(0x7ed321), title='Setting:')
         if arg1 == 'ip':
             self.ip = arg2
-            embed.add_field(name='IP:', value=self.ip, inline=False)
+            embed.add_field(name='Host:', value=self.telnet_host, inline=False)
             await ctx.send(embed=embed)
         if arg1 == 'port':
             self.port = arg2
-            embed.add_field(name='Port:', value=self.port, inline=False)
+            embed.add_field(name='Port:', value=self.telnet_port, inline=False)
             await ctx.send(embed=embed)
 
 ###############################################################################
@@ -188,8 +195,8 @@ class Serverbot(commands.Cog):
     async def status(self, ctx):
         embed = discord.Embed(colour=discord.Colour(0x7ed321),
                 title='Riot Test Server Bot:\nVersion {}.'.format(self.version))
-        embed.add_field(name='IP:', value=self.ip, inline=False)
-        embed.add_field(name='Port:', value=self.port, inline=False)
+        embed.add_field(name='Host:', value=self.telnet_host, inline=False)
+        embed.add_field(name='Port:', value=self.telnet_port, inline=False)
         await ctx.send(embed=embed)
 
 ###############################################################################
@@ -237,9 +244,16 @@ class Serverbot(commands.Cog):
                 self.player = await voice.connect()
                 self.voice_connected = True
             try:
-                message = self.telnet.read_very_eager().decode('ascii')
+                removelist = '!?,.@#$%&+-= '
+                message = re.sub(r'[^\w'+removelist+']', '', self.telnet.read_very_eager().decode('ascii'))
+                message = message.replace('says', ':', 1)
+                message = message.replace('ooc,', ' ', 1)
+                message = message.replace('telnet', '', 1)
+                message = message.replace(' ', '', 3)
                 await channel.send('{}'.format(message))
                 print(message)
+            except:
+                print('Empty')
             finally:
                 await asyncio.sleep(10)
 

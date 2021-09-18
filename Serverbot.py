@@ -252,10 +252,18 @@ class Serverbot(commands.Cog):
                 message = message.replace(' ', '', 3)
                 await channel.send('{}'.format(message))
                 print(message)
+            except BrokenPipeError:
+                self.telnet = telnetlib.Telnet(self.telnet_host, self.telnet_port)
+                print(self.telnet.read_until(b'Username: ').decode('ascii'))
+                self.telnet.write(bytes(self.telnet_user, encoding='ascii') + b'\n')
+                print(self.telnet.read_until(b'Password: ').decode('ascii'))
+                self.telnet.write(bytes(self.telnet_pass, encoding='ascii') + b'\n')
+                print(self.telnet.read_until(b'> ').decode('ascii'))
+                self.telnet.write(b'acceptmessages on\n')
             except:
                 print('Empty')
             finally:
-                await asyncio.sleep(10)
+                await asyncio.sleep(5)
 
 ###############################################################################
     @commands.command(name='unlock', brief='Unlock test server.',

@@ -21,6 +21,7 @@ import asyncio
 import discord
 import json
 import pymysql
+import sys
 import re
 import telnetlib
 
@@ -32,7 +33,6 @@ class Serverbot(commands.Cog):
         with open('PyConnect.json') as config_file:
             self.config = json.load(config_file)
             self.channel_id = self.config['id']['channel']
-            self.voice_id = self.config['id']['voice']
             self.telnet_host = self.config['server']['host']
             self.telnet_port = self.config['server']['port']
             self.telnet_user = self.config['server']['user']
@@ -41,14 +41,18 @@ class Serverbot(commands.Cog):
             self.sql_db = self.config['sql']['db']
             self.sql_user = self.config['sql']['user']
             self.sql_pass = self.config['sql']['password']
-        self.tracking_task = False
-        self.voice_connected = False
+        self.connect()
+        self.tracking_task = self.bot.loop.create_task(self.track())
+
+###############################################################################
+    def connect(self):
         self.telnet = telnetlib.Telnet(self.telnet_host, self.telnet_port)
         print(self.telnet.read_until(b'Username: ').decode('ascii'))
-        self.telnet.write(bytes(self.telnet_user, encoding='ascii') + b'\n')
+        self.telnet.write(bytes(self.telnet_user, encoding='ascii') + b'\r\n')
         print(self.telnet.read_until(b'Password: ').decode('ascii'))
-        self.telnet.write(bytes(self.telnet_pass, encoding='ascii') + b'\n')
+        self.telnet.write(bytes(self.telnet_pass, encoding='ascii') + b'\r\n')
         print(self.telnet.read_until(b'> ').decode('ascii'))
+        self.telnet.write(b'acceptmessages on\r\n')
 
 ###############################################################################
     @commands.command(name='gmsay', brief='Send gmsay message to world.',
@@ -61,7 +65,7 @@ class Serverbot(commands.Cog):
         embed = discord.Embed(colour=discord.Colour(0x7ed321),
                 title='Sending gmsay message to world.')
         if x == 1:
-            self.telnet.write(b'gmsay ' + args[0].encode('ascii') + b'\n')
+            self.telnet.write(b'gmsay ' + args[0].encode('ascii') + b'\r\n')
             embed.add_field(name='Telnet:',value=self.telnet.read_until(b'> ')
                     .decode('ascii'), inline=False)
         else:
@@ -74,7 +78,7 @@ class Serverbot(commands.Cog):
                     description='Display riot test server commands.')
     @commands.cooldown(1, 5, commands.BucketType.channel)
     async def list(self, ctx):
-        self.telnet.write(b'help\n')
+        self.telnet.write(b'help\r\n')
         embed = discord.Embed(colour=discord.Colour(0x7ed321),
                 title='Displaying riot test server commands.')
         embed.add_field(name='Telnet:',value=self.telnet.read_until(b'> ')
@@ -139,7 +143,7 @@ class Serverbot(commands.Cog):
                 title='Reloading zone quests.')
         if x == 1:
             self.telnet.write(b'reloadzonequests ' + args[0]
-                    .encode('ascii') + b'\n')
+                    .encode('ascii') + b'\r\n')
             embed.add_field(name='Telnet:',value=self.telnet.read_until(b'> ')
                     .decode('ascii'), inline=False)
         else:
@@ -172,23 +176,6 @@ class Serverbot(commands.Cog):
         await self.bot.close()
 
 ###############################################################################
-    @commands.command(name='start', brief='Start tracking loop.',
-            description='Start tracking loop.')
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def start(self, ctx):
-        if self.tracking_task is False:
-            self.telnet.write(b'acceptmessages on\n')
-            self.tracking_task = self.bot.loop.create_task(self.track())
-            embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                    title='Tracking loop started!')
-            await ctx.send(embed=embed)
-        else:
-            self.telnet.write(b'acceptmessages off\n')
-            embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                    title='Tracking loop is already running!')
-            await ctx.send(embed=embed)
-
-###############################################################################
     @commands.command(name='status', brief='Display bot status.',
             description='Display bot status.')
     @commands.cooldown(1, 5, commands.BucketType.channel)
@@ -200,22 +187,6 @@ class Serverbot(commands.Cog):
         await ctx.send(embed=embed)
 
 ###############################################################################
-    @commands.command(name='stop', brief='Stop tracking loop.',
-            description='Stop trackingbot loop.')
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def stop(self, ctx):
-        if self.tracking_task is not False:
-            self.tracking_task.cancel()
-            self.tracking_task = False
-            embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                    title='Tracking loop stopped!')
-            await ctx.send(embed=embed)
-        else:
-            embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                    title='Tracking loop is not currently running!')
-            await ctx.send(embed=embed)
-
-###############################################################################
     @commands.command(name='tell', brief='Send player a tell.',
             description='Send player a tell.')
     @commands.cooldown(1, 5, commands.BucketType.channel)
@@ -224,12 +195,12 @@ class Serverbot(commands.Cog):
         for num in args:
             x += 1
         embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                title='Sending player a tell.')
+                title='Sending {} a tell.'.format(args[0]))
         if x == 2:
             self.telnet.write(b'tell ' + args[0].encode('ascii') + b' '
-                    + args[1].encode('ascii') + b'\n')
+                    + args[1].encode('ascii') + b'\r\n')
             embed.add_field(name='Telnet:',value=self.telnet.read_until(b'> ')
-                    .decode('ascii'), inline=False)
+                    .decode('ascii') + args[1], inline=False)
         else:
             embed.add_field(name='Telnet:',value='Invalid number of inputs!')
         await ctx.send(embed=embed)
@@ -239,10 +210,6 @@ class Serverbot(commands.Cog):
         await self.bot.wait_until_ready()
         while not self.bot.is_closed():
             channel = self.bot.get_channel(int(self.channel_id))
-            voice = self.bot.get_channel(int(self.voice_id))
-            if self.voice_connected is False:
-                self.player = await voice.connect()
-                self.voice_connected = True
             try:
                 removelist = '!?,.@#$%&+-= '
                 message = re.sub(r'[^\w'+removelist+']', '', self.telnet.read_very_eager().decode('ascii'))
@@ -252,16 +219,12 @@ class Serverbot(commands.Cog):
                 message = message.replace(' ', '', 3)
                 await channel.send('{}'.format(message))
                 print(message)
-            except BrokenPipeError:
-                self.telnet = telnetlib.Telnet(self.telnet_host, self.telnet_port)
-                print(self.telnet.read_until(b'Username: ').decode('ascii'))
-                self.telnet.write(bytes(self.telnet_user, encoding='ascii') + b'\n')
-                print(self.telnet.read_until(b'Password: ').decode('ascii'))
-                self.telnet.write(bytes(self.telnet_pass, encoding='ascii') + b'\n')
-                print(self.telnet.read_until(b'> ').decode('ascii'))
-                self.telnet.write(b'acceptmessages on\n')
+            except (EOFError, ConnectionResetError):
+                print(sys.exc_info())
+                self.telnet.close()
+                self.connect()
             except:
-                print('Empty')
+                pass
             finally:
                 await asyncio.sleep(5)
 
@@ -270,7 +233,7 @@ class Serverbot(commands.Cog):
             description='Unlock test server.')
     @commands.cooldown(1, 5, commands.BucketType.channel)
     async def unlock(self, ctx):
-        self.telnet.write(b'unlock\n')
+        self.telnet.write(b'unlock\r\n')
         embed = discord.Embed(colour=discord.Colour(0x7ed321),
                 title='Unlocking test server.')
         embed.add_field(name='Telnet:',value=self.telnet.read_until(b'> ')
@@ -283,7 +246,7 @@ class Serverbot(commands.Cog):
                     description='Display players online.')
     @commands.cooldown(1, 5, commands.BucketType.channel)
     async def who(self, ctx):
-        self.telnet.write(b'who\n')
+        self.telnet.write(b'who\r\n')
         buffer = self.telnet.read_until(b'> ')
         buffer_size = 1023
         chunks = [buffer[i:i+buffer_size]
@@ -301,7 +264,7 @@ class Serverbot(commands.Cog):
                     description='Display Riot Test Server zone status.')
     @commands.cooldown(1, 5, commands.BucketType.channel)
     async def zonestatus(self, ctx):
-        self.telnet.write(b'zonestatus\n')
+        self.telnet.write(b'zonestatus\r\n')
         embed = discord.Embed(colour=discord.Colour(0x7ed321),
                 title='Displaying Riot Test Server zone status.')
         embed.add_field(name='Telnet:',value=self.telnet.read_until(b'> ')

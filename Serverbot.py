@@ -30,6 +30,7 @@ class Serverbot(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.version = '1.00'
+        self.on_message = self.bot.event(self.on_message)
         with open('PyConnect.json') as config_file:
             self.config = json.load(config_file)
             self.channel_id = self.config['id']['channel']
@@ -78,7 +79,7 @@ class Serverbot(commands.Cog):
                     description='Display riot test server commands.')
     @commands.cooldown(1, 5, commands.BucketType.channel)
     async def list(self, ctx):
-        self.telnet.write(b'help\r\n')
+        self.telnet.write(b'help\n')
         embed = discord.Embed(colour=discord.Colour(0x7ed321),
                 title='Displaying riot test server commands.')
         embed.add_field(name='Telnet:',value=self.telnet.read_until(b'> ')
@@ -96,6 +97,15 @@ class Serverbot(commands.Cog):
         embed.add_field(name='Telnet:',value=self.telnet.read_until(b'> ')
                 .decode('ascii'), inline=False)
         await ctx.send(embed=embed)
+
+
+###############################################################################
+    async def on_message(self, message):
+        await self.bot.process_commands(message)
+        if (message.channel.id == int(self.channel_id)):
+            self.telnet.write(b'broadcast ' + bytes(str(message.author),
+                    encoding='ascii') +  (b': yaps ') + bytes(str(message.content),
+                            encoding='ascii') + b'\r\n')
 
 ###############################################################################
     @commands.command(name='reload', brief='Reload config variables.',

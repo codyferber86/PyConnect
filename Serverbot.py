@@ -56,56 +56,13 @@ class Serverbot(commands.Cog):
         self.telnet.write(b'acceptmessages on\r\n')
 
 ###############################################################################
-    @commands.command(name='gmsay', brief='Send gmsay message to world.',
-            description='Send gmsay message to world.')
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def gmsay(self, ctx, *args):
-        x = 0
-        for num in args:
-            x += 1
-        embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                title='Sending gmsay message to world.')
-        if x == 1:
-            self.telnet.write(b'gmsay ' + args[0].encode('ascii') + b'\r\n')
-            embed.add_field(name='Telnet:',value=self.telnet.read_until(b'> ')
-                    .decode('ascii'), inline=False)
-        else:
-            embed.add_field(name='Telnet:',value='Invalid number of inputs!')
-        await ctx.send(embed=embed)
-
-###############################################################################
-    @commands.command(name='list',
-            brief='Display Riot Test Server commands.',
-                    description='Display riot test server commands.')
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def list(self, ctx):
-        self.telnet.write(b'help\n')
-        embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                title='Displaying riot test server commands.')
-        embed.add_field(name='Telnet:',value=self.telnet.read_until(b'> ')
-                .decode('ascii'), inline=False)
-        await ctx.send(embed=embed)
-
-###############################################################################
-    @commands.command(name='lock', brief='Lock riot test server.',
-            description='Lock riot test server.')
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def lock(self, ctx):
-        self.telnet.write(b'lock\n')
-        embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                title='Locking Riot Test Server.')
-        embed.add_field(name='Telnet:',value=self.telnet.read_until(b'> ')
-                .decode('ascii'), inline=False)
-        await ctx.send(embed=embed)
-
-
-###############################################################################
     async def on_message(self, message):
         await self.bot.process_commands(message)
         if (message.channel.id == int(self.channel_id)):
-            self.telnet.write(b'broadcast ' + bytes(str(message.author),
-                    encoding='ascii') +  (b': yaps ') + bytes(str(message.content),
-                            encoding='ascii') + b'\r\n')
+            if (message.author.bot == False):
+                self.telnet.write(b'ooc ' + bytes(str(message.author),
+                        encoding='ascii') +  (b': yaps ') + bytes(str(message.content),
+                                encoding='ascii') + b'\r\n')
 
 ###############################################################################
     @commands.command(name='reload', brief='Reload config variables.',
@@ -142,25 +99,6 @@ class Serverbot(commands.Cog):
         await ctx.send(embed=embed)
 
 ###############################################################################
-    @commands.command(name='reloadzonequests', brief='Reload zone quests.',
-            description='Reload zone quests.')
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def reloadzonequests(self, ctx, *args):
-        x = 0
-        for num in args:
-            x += 1
-        embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                title='Reloading zone quests.')
-        if x == 1:
-            self.telnet.write(b'reloadzonequests ' + args[0]
-                    .encode('ascii') + b'\r\n')
-            embed.add_field(name='Telnet:',value=self.telnet.read_until(b'> ')
-                    .decode('ascii'), inline=False)
-        else:
-            embed.add_field(name='Telnet:',value='Invalid number of inputs!')
-        await ctx.send(embed=embed)
-
-###############################################################################
     @commands.command(name='set', brief='Set config variable.',
             description='Set config variable.')
     @commands.cooldown(1, 5, commands.BucketType.channel)
@@ -181,39 +119,9 @@ class Serverbot(commands.Cog):
     @commands.cooldown(1, 5, commands.BucketType.channel)
     async def shutdown(self, ctx):
         embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                title='Shutting down Riot Test Server bot!')
+                title='Shutting down Riot test server bot!')
         await ctx.send(embed=embed)
         await self.bot.close()
-
-###############################################################################
-    @commands.command(name='status', brief='Display bot status.',
-            description='Display bot status.')
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def status(self, ctx):
-        embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                title='Riot Test Server Bot:\nVersion {}.'.format(self.version))
-        embed.add_field(name='Host:', value=self.telnet_host, inline=False)
-        embed.add_field(name='Port:', value=self.telnet_port, inline=False)
-        await ctx.send(embed=embed)
-
-###############################################################################
-    @commands.command(name='tell', brief='Send player a tell.',
-            description='Send player a tell.')
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def tell(self, ctx, *args):
-        x = 0
-        for num in args:
-            x += 1
-        embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                title='Sending {} a tell.'.format(args[0]))
-        if x == 2:
-            self.telnet.write(b'tell ' + args[0].encode('ascii') + b' '
-                    + args[1].encode('ascii') + b'\r\n')
-            embed.add_field(name='Telnet:',value=self.telnet.read_until(b'> ')
-                    .decode('ascii') + args[1], inline=False)
-        else:
-            embed.add_field(name='Telnet:',value='Invalid number of inputs!')
-        await ctx.send(embed=embed)
 
 ###############################################################################
     async def track(self):
@@ -225,11 +133,11 @@ class Serverbot(commands.Cog):
                 message = re.sub(r'[^\w'+removelist+']', '', self.telnet.read_very_eager().decode('ascii'))
                 message = message.replace('says', ':', 1)
                 message = message.replace('ooc,', ' ', 1)
-                message = message.replace('telnet', '', 1)
+                message = message.replace('telnet', '', 2)
                 message = message.replace(' ', '', 3)
                 await channel.send('{}'.format(message))
                 print(message)
-            except (EOFError, ConnectionResetError):
+            except (BrokenPipeError, ConnectionResetError, EOFError):
                 print(sys.exc_info())
                 self.telnet.close()
                 self.connect()
@@ -237,49 +145,6 @@ class Serverbot(commands.Cog):
                 pass
             finally:
                 await asyncio.sleep(5)
-
-###############################################################################
-    @commands.command(name='unlock', brief='Unlock test server.',
-            description='Unlock test server.')
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def unlock(self, ctx):
-        self.telnet.write(b'unlock\r\n')
-        embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                title='Unlocking test server.')
-        embed.add_field(name='Telnet:',value=self.telnet.read_until(b'> ')
-                .decode('ascii'), inline=False)
-        await ctx.send(embed=embed)
-
-###############################################################################
-    @commands.command(name='who',
-            brief='Display players online.',
-                    description='Display players online.')
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def who(self, ctx):
-        self.telnet.write(b'who\r\n')
-        buffer = self.telnet.read_until(b'> ')
-        buffer_size = 1023
-        chunks = [buffer[i:i+buffer_size]
-                for i in range(0, len(buffer), buffer_size)]
-        embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                title='Displaying players online.')
-        for value in chunks:
-            embed.add_field(name='Telnet:',
-                    value=value.decode('ascii'), inline=False)
-        await ctx.send(embed=embed)
-
-###############################################################################
-    @commands.command(name='zonestatus',
-            brief='Display Riot Test Server zone status.',
-                    description='Display Riot Test Server zone status.')
-    @commands.cooldown(1, 5, commands.BucketType.channel)
-    async def zonestatus(self, ctx):
-        self.telnet.write(b'zonestatus\r\n')
-        embed = discord.Embed(colour=discord.Colour(0x7ed321),
-                title='Displaying Riot Test Server zone status.')
-        embed.add_field(name='Telnet:',value=self.telnet.read_until(b'> ')
-                .decode('ascii'), inline=False)
-        await ctx.send(embed=embed)
 
 ###############################################################################
 def setup(bot):

@@ -3,16 +3,16 @@
     "channel": "885500127966527538"
   },
   "server": {
-    "host": "localhost",
+    "host": "219.74.160.130",
     "port": "9000",
     "user": "telnet",
     "password": "eqemu"
   },
   "sql": {
-    "host": "localhost",
-    "db": "eqemu",
-    "user": "user",
-    "password": "pass"
+    "host": "219.74.160.130",
+    "db": "peq",
+    "user": "",
+    "password": ""
   },
   "token": ""
 }

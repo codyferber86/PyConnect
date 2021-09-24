@@ -17,6 +17,7 @@
 ###############################################################################
 from contextlib import closing
 from discord.ext import commands
+from telnetlib import IAC, NOP
 import asyncio
 import discord
 import json
@@ -44,6 +45,7 @@ class Serverbot(commands.Cog):
             self.sql_pass = self.config['sql']['password']
         self.connect()
         self.tracking_task = self.bot.loop.create_task(self.track())
+        self.who_timer = 0
 
 ###############################################################################
     def connect(self):
@@ -54,6 +56,7 @@ class Serverbot(commands.Cog):
         self.telnet.write(bytes(self.telnet_pass, encoding='ascii') + b'\r\n')
         print(self.telnet.read_until(b'> ').decode('ascii'))
         self.telnet.write(b'acceptmessages on\r\n')
+        self.telnet.read_until(b'> ').decode('ascii')
 
 ###############################################################################
     async def on_message(self, message):
@@ -129,20 +132,42 @@ class Serverbot(commands.Cog):
         while not self.bot.is_closed():
             channel = self.bot.get_channel(int(self.channel_id))
             try:
+                self.telnet.sock.send(IAC+NOP)
                 removelist = '!?,.@#$%&+-= '
-                message = re.sub(r'[^\w'+removelist+']', '', self.telnet.read_very_eager().decode('ascii'))
+                message = re.sub(r'[^\w'+removelist+']', '',
+                        self.telnet.read_very_eager().decode('ascii'))
                 message = message.replace('says', ':', 1)
                 message = message.replace('ooc,', ' ', 1)
                 message = message.replace('telnet', '', 2)
                 message = message.replace(' ', '', 3)
                 await channel.send('{}'.format(message))
-                print(message)
             except (BrokenPipeError, ConnectionResetError, EOFError):
                 print(sys.exc_info())
                 self.telnet.close()
                 self.connect()
             except:
                 pass
+            try:
+                self.who_timer = self.who_timer + 1
+                wholist = '(.+?)\s+players'
+                if self.who_timer >= 6:
+                    self.telnet.write(b'acceptmessages off\r\n')
+                    self.telnet.read_until(b'> ').decode('ascii')
+                    self.telnet.write(b'who\r\n')
+                    who = str(self.telnet.read_until(b'> ').decode('ascii'))
+                    compiled = re.compile(wholist)
+                    ms = compiled.search(who)
+                    await self.bot.change_presence(activity=discord.Game(name=
+                            'EqOnline: {} players!'.format(ms.group(1))))
+                    self.telnet.write(b'acceptmessages on\r\n')
+                    self.telnet.read_until(b'> ').decode('ascii')
+                    self.who_timer = 0
+            except (BrokenPipeError, ConnectionResetError, EOFError):
+                print(sys.exc_info())
+                self.telnet.close()
+                self.connect()
+            except:
+                print(sys.exc_info())
             finally:
                 await asyncio.sleep(5)
 
